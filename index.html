@@ -1154,11 +1154,17 @@
           Cal("init", selected.namespace, { origin: "https://cal.com" });
           Cal.ns[selected.namespace]("inline", {
             elementOrSelector: "#my-cal-inline",
-            config: { layout: "month_view", theme: "dark" },
+            config: {
+              layout: "month_view",
+              theme: "dark",
+              hideEventTypeDetails: true,
+              showTimezoneWhenEventDetailsHidden: false
+            },
             calLink: selected.calLink,
           });
           Cal.ns[selected.namespace]("ui", {
-            hideEventTypeDetails: false,
+            hideEventTypeDetails: true,
+            showTimezoneWhenEventDetailsHidden: false,
             layout: "month_view",
             theme: "dark"
           });

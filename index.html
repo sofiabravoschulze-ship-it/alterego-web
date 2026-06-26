@@ -729,6 +729,44 @@
       text-align: right;
     }
 
+    .booking-event-details {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.85rem;
+      padding: 1rem 1.2rem;
+      border-bottom: 1px solid rgba(217,203,179,0.12);
+      background: rgba(255,255,255,0.025);
+    }
+
+    .booking-event-detail {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.55rem;
+      min-height: 38px;
+      padding: 0.65rem 0.85rem;
+      border: 1px solid rgba(217,203,179,0.16);
+      color: rgba(254,254,254,0.9);
+      font-size: 0.76rem;
+      line-height: 1.35;
+      background: rgba(0,0,0,0.18);
+    }
+
+    .booking-event-detail svg {
+      width: 17px;
+      height: 17px;
+      color: var(--gold);
+      flex-shrink: 0;
+    }
+
+    .booking-event-detail strong {
+      font-weight: 500;
+      color: var(--white);
+    }
+
+    .booking-event-detail span {
+      color: rgba(254,254,254,0.68);
+    }
+
     #my-cal-inline {
       width: 100%;
       min-height: 720px;
@@ -755,6 +793,8 @@
       .booking-choice-header p { max-width: 520px; }
       .booking-panel-header { align-items: flex-start; flex-direction: column; }
       .booking-panel-hint { text-align: left; }
+      .booking-event-details { flex-direction: column; }
+      .booking-event-detail { width: 100%; }
       #my-cal-inline { min-height: 760px; }
     }
 
@@ -1057,25 +1097,79 @@
           </div>
           <p class="booking-panel-hint">Puedes cambiar de barbero tocando otra tarjeta.</p>
         </div>
+
+        <div class="booking-event-details" aria-label="Detalles de la reserva">
+          <div class="booking-event-detail">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
+              <circle cx="12" cy="12" r="9"></circle>
+              <path d="M12 7v5l3 2"></path>
+            </svg>
+            <strong>30m</strong>
+          </div>
+          <div class="booking-event-detail">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
+              <path d="M12 21s7-5.2 7-11a7 7 0 10-14 0c0 5.8 7 11 7 11z"></path>
+              <circle cx="12" cy="10" r="2.5"></circle>
+            </svg>
+            <span><strong>Av. Manuel Antonio Matta 067, local 110</strong><br />Ñuñoa, Santiago</span>
+          </div>
+        </div>
+
         <div id="my-cal-inline"></div>
       </div>
 
       <script type="text/javascript">
+        (function (C, A, L) {
+          let p = function (a, ar) { a.q.push(ar); };
+          let d = C.document;
+
+          C.Cal = C.Cal || function () {
+            let cal = C.Cal;
+            let ar = arguments;
+
+            if (!cal.loaded) {
+              cal.ns = {};
+              cal.q = cal.q || [];
+              d.head.appendChild(d.createElement("script")).src = A;
+              cal.loaded = true;
+            }
+
+            if (ar[0] === L) {
+              const api = function () { p(api, arguments); };
+              const namespace = ar[1];
+
+              api.q = api.q || [];
+
+              if (typeof namespace === "string") {
+                cal.ns[namespace] = cal.ns[namespace] || api;
+                p(cal.ns[namespace], ar);
+                p(cal, ["initNamespace", namespace]);
+              } else {
+                p(cal, ar);
+              }
+
+              return;
+            }
+
+            p(cal, ar);
+          };
+        })(window, "https://app.cal.com/embed/embed.js", "init");
+
         const bookingCalendars = {
           francuts: {
             label: "FRANCUTS",
             publicUrl: "https://cal.com/alterego-barberia/francuts",
-            embedUrl: "https://cal.com/alterego-barberia/francuts?embed=&theme=dark&layout=month_view&hideEventTypeDetails=true&showTimezoneWhenEventDetailsHidden=false"
+            calLink: "alterego-barberia/francuts"
           },
           tony: {
             label: "Tony Barber",
             publicUrl: "https://cal.com/alterego-barberia/agendar-con-tony-barber",
-            embedUrl: "https://cal.com/alterego-barberia/agendar-con-tony-barber?embed=&theme=dark&layout=month_view&hideEventTypeDetails=true&showTimezoneWhenEventDetailsHidden=false"
+            calLink: "alterego-barberia/agendar-con-tony-barber"
           },
           carmelo: {
             label: "Carmelo Barber",
             publicUrl: "https://cal.com/alterego-barberia/agendar-con-carmelo-barber",
-            embedUrl: "https://cal.com/alterego-barberia/agendar-con-carmelo-barber?embed=&theme=dark&layout=month_view&hideEventTypeDetails=true&showTimezoneWhenEventDetailsHidden=false"
+            calLink: "alterego-barberia/agendar-con-carmelo-barber"
           }
         };
 
@@ -1094,17 +1188,21 @@
             card.classList.toggle("is-active", card.dataset.barber === barberKey);
           });
 
-          // Cal.com a veces no refresca bien el embed cuando se cambia de barbero.
-          // Por eso reemplazamos el iframe completo cada vez que se elige una opción.
-          const iframe = document.createElement("iframe");
-          iframe.title = `Calendario de reservas de ${selected.label}`;
-          iframe.src = `${selected.embedUrl}&refresh=${Date.now()}`;
-          iframe.loading = "lazy";
-          iframe.style.width = "100%";
-          iframe.style.minHeight = "760px";
-          iframe.style.border = "0";
-          iframe.style.display = "block";
-          iframe.setAttribute("allow", "payment *");
+          /*
+            Usamos el embed oficial de Cal.com y ocultamos la tarjeta interna de detalles,
+            porque esa tarjeta muestra "America/Santiago". Los detalles importantes
+            (30m + dirección) quedan visibles en la tarjeta propia de la web.
+          */
+          const namespace = `alterego-${barberKey}-${Date.now()}`;
+          const targetId = `cal-inline-${namespace}`;
+
+          container.replaceChildren();
+
+          const target = document.createElement("div");
+          target.id = targetId;
+          target.style.width = "100%";
+          target.style.minHeight = "760px";
+          container.appendChild(target);
 
           const fallback = document.createElement("a");
           fallback.href = selected.publicUrl;
@@ -1112,8 +1210,33 @@
           fallback.rel = "noopener noreferrer";
           fallback.className = "booking-fallback-link";
           fallback.textContent = `Abrir calendario de ${selected.label} en una pestaña nueva`;
+          container.appendChild(fallback);
 
-          container.replaceChildren(iframe, fallback);
+          Cal("init", namespace, {
+            origin: "https://app.cal.com"
+          });
+
+          Cal.ns[namespace]("inline", {
+            elementOrSelector: `#${targetId}`,
+            calLink: selected.calLink,
+            config: {
+              layout: "month_view",
+              theme: "dark"
+            }
+          });
+
+          Cal.ns[namespace]("ui", {
+            theme: "dark",
+            layout: "month_view",
+            hideEventTypeDetails: true,
+            showTimezoneWhenEventDetailsHidden: false,
+            styles: {
+              branding: {
+                brandColor: "#d9cbb3"
+              }
+            }
+          });
+
           panel.scrollIntoView({ behavior: "smooth", block: "start" });
         }
 
